@@ -52,7 +52,6 @@ usort($orders, function($a,$b){
         <dt class="text-gray-600">メール</dt><dd><?= h($mail) ?></dd>
         <dt class="text-gray-600">住所</dt><dd><?= h($addr) ?></dd>
       </dl>
-      <p class="mt-4 text-xs text-gray-500">※ダミー表示です。実運用ではDBの会員情報を表示してください。</p>
     </section>
 
     <!-- 右：購入履歴 -->

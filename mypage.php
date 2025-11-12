@@ -1,36 +1,26 @@
 <?php
-// /2025/trustpc/mypage.php
-if (session_status() === PHP_SESSION_NONE) session_start();
+// /2025/trustpc/mypage.php  ─ 出力前に必ず読み込み
+require_once __DIR__ . '/lib/app.php';          // ← h(), yen(), ほか共通
+require_once __DIR__ . '/includes/functions.php';
+requireLogin();                                 // ← 未ログインなら login.php へ
 
-// 既存のログイン必須ヘルパーがある前提（なければ簡易版を使う）
-if (is_file(__DIR__ . '/includes/functions.php')) {
-  require __DIR__ . '/includes/functions.php';
-  if (function_exists('requireLogin')) requireLogin();
-} else {
-  if (empty($_SESSION['customer'])) { header('Location: login.php'); exit; }
-}
-
-// 表示用の安全な取り出し
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-
-// アカウント情報（セッション想定）
+// セッションからアカウント情報を取得（無ければ空文字）
 $cu   = $_SESSION['customer'] ?? [];
-$name = $cu['name']  ?? '';
-$mail = $cu['email'] ?? ($cu['mail'] ?? '');   // どちらでも対応
+$name = $cu['name']    ?? '';
+$mail = $cu['email']   ?? ($cu['mail'] ?? '');
 $addr = $cu['address'] ?? '';
 
-// 購入履歴（セッション想定: $_SESSION['orders']）
-// 例）orders[] = ['date'=>'2025-07-01','items'=>[['name'=>'TrustPC Model 1','qty'=>1,'price'=>250000]], 'total'=>250000]
+// 購入履歴（セッション想定）例: $_SESSION['orders'] = [
+//   ['date'=>'2025-10-01','items'=>[['name'=>'TrustPC Model 3','price'=>270000,'qty'=>1]], 'total'=>270000],
+// ];
 $orders = [];
 if (!empty($_SESSION['orders']) && is_array($_SESSION['orders'])) {
   $orders = $_SESSION['orders'];
 }
-// 新しい順に並べる（dateがあれば）
 usort($orders, function($a,$b){
   $da = $a['date'] ?? '';
   $db = $b['date'] ?? '';
-  if ($da == $db) return 0;
-  return ($da > $db) ? -1 : 1;
+  return $da == $db ? 0 : ($da > $db ? -1 : 1); // 新しい順
 });
 ?>
 <!DOCTYPE html>
@@ -57,18 +47,11 @@ usort($orders, function($a,$b){
     <!-- 左：アカウント情報 -->
     <section class="panel p-5 flex-1 min-w-[320px]">
       <h2 class="text-lg font-semibold mb-4">👤 アカウント情報</h2>
-
       <dl class="grid grid-cols-[120px_1fr] gap-y-3 text-sm">
-        <dt class="text-gray-600">氏名</dt>
-        <dd><?= h($name) ?></dd>
-
-        <dt class="text-gray-600">メール</dt>
-        <dd><?= h($mail) ?></dd>
-
-        <dt class="text-gray-600">住所</dt>
-        <dd><?= h($addr) ?></dd>
+        <dt class="text-gray-600">氏名</dt><dd><?= h($name) ?></dd>
+        <dt class="text-gray-600">メール</dt><dd><?= h($mail) ?></dd>
+        <dt class="text-gray-600">住所</dt><dd><?= h($addr) ?></dd>
       </dl>
-
       <p class="mt-4 text-xs text-gray-500">※ダミー表示です。実運用ではDBの会員情報を表示してください。</p>
     </section>
 
@@ -85,19 +68,14 @@ usort($orders, function($a,$b){
               $date  = $od['date'] ?? '';
               $items = is_array($od['items'] ?? null) ? $od['items'] : [];
               $total = (int)($od['total'] ?? 0);
-
-              // 表示は1行1注文：最初の商品の名前 + 必要なら「ほかN点」
-              $firstName = $items[0]['name'] ?? 'ご注文';
-              $more = max(0, count($items) - 1);
-              $label = $firstName . ($more>0 ? " ほか{$more}点" : '');
-              // 合計が無ければ概算
               if (!$total) {
                 foreach ($items as $it) {
-                  $qty = (int)($it['qty'] ?? 1);
-                  $price = (int)($it['price'] ?? 0);
-                  $total += $qty * $price;
+                  $total += (int)($it['price'] ?? 0) * max(1,(int)($it['qty'] ?? 1));
                 }
               }
+              $first = $items[0]['name'] ?? 'ご注文';
+              $more  = max(0, count($items) - 1);
+              $label = $first . ($more > 0 ? " ほか{$more}点" : '');
             ?>
             <div class="flex items-center justify-between py-3 text-sm">
               <div class="flex items-center gap-4">

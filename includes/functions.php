@@ -1,11 +1,13 @@
 <?php
-function h($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
+// セッション開始（出力前）
+if (session_status() === PHP_SESSION_NONE) session_start();
 
-function isLoggedIn() { return !empty($_SESSION['customer']); }
-
-function requireLogin() {
-  if (!isLoggedIn()) {
-    header('Location: /login.php');
+/**
+ * ログイン必須：未ログインならログイン画面へ
+ */
+function requireLogin(): void {
+  if (empty($_SESSION['customer'])) {
+    header('Location: login.php');
     exit;
   }
 }

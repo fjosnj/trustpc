@@ -19,7 +19,7 @@
 
   <!-- ★ 1→2→3列のレスポンシブグリッドに変更 -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    <a class="block p-4 bg-white rounded-xl shadow hover:shadow-md transition" href="/product_detail.php?id=TP-G-LITE">
+    <a class="block p-4 bg-white rounded-xl shadow hover:shadow-md transition" href="product_detail.php?id=TP-S-VAL">
       <!-- ★ 画像の比率を固定 -->
       <div class="aspect-[4/3] overflow-hidden rounded-lg mb-2">
         <img src="./img/products/valorant-main.png" alt="TP-G-LITEの外観画像" class="w-full h-full object-cover">
@@ -29,7 +29,7 @@
       <div class="text-gray-600 text-sm">RTX 4060 / Ryzen 5</div>
     </a>
 
-    <a class="block p-4 bg-white rounded-xl shadow hover:shadow-md transition" href="/product_detail.php?id=TP-G-STD">
+    <a class="block p-4 bg-white rounded-xl shadow hover:shadow-md transition" href="product_detail.php?id=TP-S-MC">
       <div class="aspect-[4/3] overflow-hidden rounded-lg mb-2">
         <img src="./img/products/minecraft-main.png" alt="TP-G-STDの外観画像" class="w-full h-full object-cover">
       </div>
@@ -38,7 +38,7 @@
       <div class="text-gray-600 text-sm">RTX 4060 / Ryzen 7</div>
     </a>
 
-    <a class="block p-4 bg-white rounded-xl shadow hover:shadow-md transition" href="/product_detail.php?id=TP-G-ADV">
+    <a class="block p-4 bg-white rounded-xl shadow hover:shadow-md transition" href="product_detail.php?id=TP-G-UP">
       <div class="aspect-[4/3] overflow-hidden rounded-lg mb-2">
         <img src="./img/products/ultimate-pro-main.png" alt="TP-G-ADVの外観画像" class="w-full h-full object-cover">
       </div>

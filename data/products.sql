@@ -1,0 +1,22 @@
+-- products テーブルと初期データ
+CREATE TABLE IF NOT EXISTS products (
+  id VARCHAR(32) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  price INT NOT NULL,
+  spec JSON NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO products (id, name, price, spec) VALUES
+('TP-G-LITE','TP-G-LITE',129800, JSON_OBJECT('CPU','Ryzen 5 5600','GPU','RTX 4060','RAM','16GB','Storage','1TB SSD')),
+('TP-G-STD','TP-G-STD',179800, JSON_OBJECT('CPU','Ryzen 7 5700X','GPU','RTX 4070','RAM','16GB','Storage','1TB SSD')),
+('TP-G-ADV','TP-G-ADV',249800, JSON_OBJECT('CPU','Ryzen 7 7800X3D','GPU','RTX 4070 Ti','RAM','32GB','Storage','2TB SSD'))
+ON DUPLICATE KEY UPDATE name=VALUES(name), price=VALUES(price), spec=VALUES(spec);
+
+-- customer テーブル（簡易版）
+CREATE TABLE IF NOT EXISTS customer (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  address VARCHAR(255) NULL,
+  login VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

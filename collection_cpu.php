@@ -19,7 +19,11 @@ $title = 'CPUから選ぶ';
 <main class="max-w-7xl mx-auto px-4 py-8">
   <?php
     $q = $_GET['q'] ?? '';
-    $list = list_products(['cpu'=>$q]);
+    require __DIR__ . '/includes/db_connect.php';
+    //$list = list_products(['cpu'=>$q]);
+    $stmt = $pdo->prepare("SELECT * FROM products");
+    $stmt->execute();
+    $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
   ?>
   <h1 class="text-2xl font-semibold mb-4">CPUから選ぶ</h1>
 

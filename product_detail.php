@@ -3,6 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/lib/app.php'; // h(), yen(), list_products(), $OPT_*
 
+  require __DIR__ . '/includes/db_connect.php';
 // --- 商品取得（SKU or slug どちらでもOK・頑丈版） ---
 $id   = $_GET['id'] ?? '';   // 例: TP-G-ADV
 $slug = $_GET['s']  ?? '';   // 例: tp-g-adv
@@ -13,26 +14,42 @@ $prod = null;
 
 // 1) slug 完全一致
 if ($slug !== '') {
-  foreach ($all as $p) { if (!empty($p['slug']) && $p['slug'] === $slug) { $prod = $p; break; } }
+  //foreach ($all as $p) { if (!empty($p['slug']) && $p['slug'] === $slug) { $prod = $p; break; } }
+  $stmt = $pdo->prepare("SELECT * FROM products WHERE slug = ?");
+  $stmt->execute([$slug]);
+  $prod = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 // 2) SKU 完全一致
 if (!$prod && $id !== '') {
-  foreach ($all as $p) { if (!empty($p['sku']) && $p['sku'] === $id) { $prod = $p; break; } }
+  //foreach ($all as $p) { if (!empty($p['sku']) && $p['sku'] === $id) { $prod = $p; break; } }
+  $stmt = $pdo->prepare("SELECT * FROM products WHERE sku = ?");
+  $stmt->execute([$id]);
+  $prod = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 // 3) 大文字小文字無視
 if (!$prod && ($id !== '' || $slug !== '')) {
   $want = strtolower($id ?: $slug);
+  /*
   foreach ($all as $p) {
     if (!empty($p['slug']) && strtolower($p['slug']) === $want) { $prod = $p; break; }
     if (!empty($p['sku'])  && strtolower($p['sku'])  === $want) { $prod = $p; break; }
   }
+    */
+  $stmt = $pdo->prepare("SELECT * FROM products WHERE slug like ? OR sku like ?");
+  $stmt->execute(["%".$want."%", "%".$want."%"]);
+  $prod = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 // 4) 名前の部分一致（任意）
 if (!$prod && $key !== '') {
   $want = mb_strtolower($key);
+  /*
   foreach ($all as $p) {
     if (!empty($p['name']) && mb_strpos(mb_strtolower($p['name']), $want) !== false) { $prod = $p; break; }
   }
+    */
+  $stmt = $pdo->prepare("SELECT * FROM products WHERE name like ?");
+  $stmt->execute(["%" . $want . "%"]);
+  $prod = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 if (!$prod) { http_response_code(404); exit('商品が見つかりません'); }
 
@@ -48,7 +65,7 @@ $default_ram = pick_ram_val($prod['ram'] ?? 16);
 $default_ssd = pick_ssd_val($prod['storage'] ?? '1TB SSD');
 
 $basePrice = (int)($prod['price'] ?? 0);
-$img = 'data/img/noimage.jpg'; // 画像があるなら差し替え
+$img = $prod['image_url']; // 画像があるなら差し替え
 global $OPT_RAM, $OPT_SSD;
 ?>
 <!DOCTYPE html>
@@ -72,7 +89,7 @@ global $OPT_RAM, $OPT_SSD;
     <div class="rounded-2xl border bg-white p-4">
       <div class="w-full aspect-[4/3] rounded-xl bg-gray-100 overflow-hidden">
         <!-- 画像を使う場合は hidden を外す -->
-        <img src="<?= h($img) ?>" alt="<?= h($prod['name']) ?>" class="w-full h-full object-cover hidden">
+        <img src="<?= h($img) ?>" alt="<?= h($prod['name']) ?>" class="w-full h-full object-cover">
       </div>
     </div>
 

@@ -30,12 +30,22 @@ $all = list_products();
     <section class="panel p-4">
       <h2 class="font-semibold mb-3">条件を選んでください</h2>
 
-      <!-- 予算 -->
+      <!-- 予算（下限・上限の2本） -->
       <div class="mb-5">
         <div class="text-sm text-gray-600 mb-1">予算</div>
-        <input id="budget" type="range" min="60000" max="400000" step="10000" value="200000" class="w-full">
+
+        <!-- 最小 -->
+        <label class="block text-xs text-gray-600 mb-1">最小</label>
+        <input id="budgetMin" type="range" min="60000" max="500000" step="10000" value="60000" class="w-full">
         <div class="mt-1 text-sm flex justify-between text-gray-600">
-          <span>¥60,000</span><span id="budgetView">¥200,000</span><span>¥400,000</span>
+          <span>¥60,000</span><span id="budgetMinView">¥60,000</span><span>¥500,000</span>
+        </div>
+
+        <!-- 最大 -->
+        <label class="block text-xs text-gray-600 mt-4 mb-1">最大</label>
+        <input id="budget" type="range" min="60000" max="500000" step="10000" value="200000" class="w-full">
+        <div class="mt-1 text-sm flex justify-between text-gray-600">
+          <span>¥60,000</span><span id="budgetView">¥200,000</span><span>¥500,000</span>
         </div>
       </div>
 
@@ -105,6 +115,8 @@ function toast(msg){
 }
 
 // --- UI 取得 ---
+const budgetMin = byId('budgetMin');
+const budgetMinView = byId('budgetMinView');
 const budget = byId('budget');
 const budgetView = byId('budgetView');
 const usesWrap = byId('uses');
@@ -112,8 +124,25 @@ const prioWrap = byId('prio');
 const resultHint = byId('resultHint');
 const resultList = byId('resultList');
 
-budget.addEventListener('input', ()=> budgetView.textContent = fmtYen(budget.value));
-budgetView.textContent = fmtYen(budget.value);
+// 初期表示
+budgetMinView.textContent = fmtYen(budgetMin.value);
+budgetView.textContent    = fmtYen(budget.value);
+
+// スライダー同士の整合
+function syncMinMax() {
+  let min = parseInt(budgetMin.value,10);
+  let max = parseInt(budget.value,10);
+  if (min > max) {
+    const active = document.activeElement === budgetMin ? 'min'
+                  : (document.activeElement === budget ? 'max' : '');
+    if (active === 'min') { budget.value = min; max = min; }
+    else { budgetMin.value = max; min = max; }
+  }
+  budgetMinView.textContent = fmtYen(min);
+  budgetView.textContent    = fmtYen(max);
+}
+budgetMin.addEventListener('input', syncMinMax);
+budget.addEventListener('input', syncMinMax);
 
 // チップのON/OFF
 function toggleChip(e){
@@ -127,11 +156,15 @@ prioWrap.addEventListener('click', toggleChip);
 // 診断ロジック（形状フィルタなし）
 function run(){
   const budgetMax = parseInt(budget.value,10);
+  const budgetMinVal = parseInt(budgetMin.value,10);
   const useSel  = Array.from(usesWrap.querySelectorAll('.chip.is-on')).map(b=>b.dataset.val);
   const prioSel = Array.from(prioWrap.querySelectorAll('.chip.is-on')).map(b=>b.dataset.val);
 
-  // 1) 価格のみで絞る
-  let cand = PRODUCTS.filter(p => parseInt(p.price||0,10) <= budgetMax);
+  // 1) 価格レンジで絞る
+  let cand = PRODUCTS.filter(p => {
+    const price = parseInt(p.price||0,10);
+    return price >= budgetMinVal && price <= budgetMax;
+  });
 
   // 2) スコアリング（簡易）
   function gpuTier(g){
@@ -248,7 +281,9 @@ resultList.addEventListener('click', async (e)=>{
 // ボタン
 byId('btnRun').addEventListener('click', run);
 byId('btnReset').addEventListener('click', ()=>{
-  budget.value = 200000; budgetView.textContent = fmtYen(200000);
+  budgetMin.value = 60000;
+  budget.value    = 200000;
+  syncMinMax();
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('is-on'));
   resultList.classList.add('hidden');
   resultHint.classList.remove('hidden');

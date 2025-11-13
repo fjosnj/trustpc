@@ -21,7 +21,7 @@ $title = 'CPUから選ぶ';
     $q = $_GET['q'] ?? '';
     require __DIR__ . '/includes/db_connect.php';
     //$list = list_products(['cpu'=>$q]);
-    $stmt = $pdo->prepare("SELECT * FROM products");
+    $stmt = $pdo->prepare("SELECT * FROM products WHERE is_active = 1");
     $stmt->execute();
     $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
   ?>

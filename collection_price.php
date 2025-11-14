@@ -11,7 +11,17 @@ $max = isset($_GET['max']) && $_GET['max'] !== '' ? max(0, (int)$_GET['max']) : 
 $filters = [];
 if ($min !== null) $filters['min'] = $min;
 if ($max !== null) $filters['max'] = $max;
-$list = list_products($filters);
+//$list = list_products($filters);
+require __DIR__ . '/includes/db_connect.php';
+if( $min !== null && $max !== null){
+  $stmt = $pdo->prepare("SELECT * FROM products WHERE price BETWEEN ? AND ? AND is_active = 1");
+  $stmt->execute([$filters['min'], $filters['max']]);
+}else{
+  $stmt = $pdo->prepare("SELECT * FROM products WHERE is_active = 1");
+  $stmt->execute();
+}
+
+$list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -49,7 +59,9 @@ $list = list_products($filters);
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       <?php foreach ($list as $p): ?>
         <article class="rounded-2xl border bg-white overflow-hidden hover:shadow-md transition">
-          <div class="w-full aspect-[4/3] bg-gray-100"></div>
+          <div class="w-full aspect-[4/3] bg-gray-100">
+            <img src="<?= h($p['image_url']) ?>" alt="<?= h($p['name']) ?>" class="w-full h-full object-cover">
+          </div>
           <div class="p-4">
             <h3 class="font-semibold"><?= h($p['name']) ?></h3>
             <p class="text-sm text-gray-600">

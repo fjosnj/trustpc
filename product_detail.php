@@ -53,7 +53,7 @@ if (!$prod && $key !== '') {
 }
 if (!$prod) { http_response_code(404); exit('商品が見つかりません'); }
 
-// --- 既定のオプション初期値 ---
+// 既定のオプション初期値
 function pick_ram_val($ram){ return (string)max(16,(int)$ram); }
 function pick_ssd_val($storage){
   $s = strtolower($storage ?? '');
@@ -100,7 +100,7 @@ global $OPT_RAM, $OPT_SSD;
         <span class="inline-flex items-center text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">在庫あり</span>
       </div>
 
-      <!-- 比較/お気に入り/カート すべて非遷移AJAX -->
+      <!-- 比較は遷移なし（AJAX）／カートは従来どおり送信 -->
       <form class="mt-4 space-y-4" method="post" action="lib/app.php">
         <input type="hidden" name="slug" value="<?= h($prod['slug']) ?>">
         <input type="hidden" name="qty" value="1">
@@ -136,36 +136,31 @@ global $OPT_RAM, $OPT_SSD;
         </div>
 
         <div class="flex items-center gap-3">
-          <button id="btnCompare" type="button"
-                  class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50">
-            比較に追加
-          </button>
+  <!-- 比較：遷移なし -->
+  <button id="btnCompare" type="button"
+          class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50">
+    比較に追加
+  </button>
 
-          <button id="btnFav" type="button"
-                  class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50">
-            お気に入りに追加
-          </button>
+  <button id="btnFav" type="button"
+          class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50">
+    お気に入りに追加
+  </button>
 
-          <button id="btnCart" type="button"
-                  class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
-            カートに入れる
-          </button>
-        </div>
+  <!-- カート：遷移なし（AJAXで cart_add.php に送る） -->
+  <button id="btnCart" type="button"
+          class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+    カートに入れる
+  </button>
+</div>
       </form>
 
-      <!-- ▼仕様表（メモリ/ストレージはJSで即時反映） -->
       <div class="mt-6 rounded-2xl border bg-white overflow-hidden">
         <table class="w-full text-sm">
           <tr class="border-b"><th class="w-28 text-left p-3 text-gray-600">CPU</th><td class="p-3"><?= h($prod['cpu']) ?></td></tr>
           <tr class="border-b"><th class="w-28 text-left p-3 text-gray-600">GPU</th><td class="p-3"><?= h($prod['gpu']) ?></td></tr>
-          <tr class="border-b">
-            <th class="w-28 text-left p-3 text-gray-600">メモリ</th>
-            <td class="p-3"><span id="specRam"><?= h($prod['ram']) ?>GB DDR5</span></td>
-          </tr>
-          <tr>
-            <th class="w-28 text-left p-3 text-gray-600">ストレージ</th>
-            <td class="p-3"><span id="specSsd"><?= h($prod['storage']) ?></span></td>
-          </tr>
+          <tr class="border-b"><th class="w-28 text-left p-3 text-gray-600">メモリ</th><td class="p-3"><?= h($prod['ram']) ?>GB DDR5</td></tr>
+          <tr><th class="w-28 text-left p-3 text-gray-600">ストレージ</th><td class="p-3"><?= h($prod['storage']) ?></td></tr>
         </table>
       </div>
 
@@ -177,48 +172,25 @@ global $OPT_RAM, $OPT_SSD;
 </main>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
-
-<!-- 価格更新 + 仕様表同期 -->
 <script>
 (function(){
+  // 価格のリアルタイム更新
   const base = <?= (int)$basePrice ?>;
   const ram  = document.getElementById('optRam');
   const ssd  = document.getElementById('optSsd');
   const view = document.getElementById('priceView');
-  const specRam = document.getElementById('specRam');
-  const specSsd = document.getElementById('specSsd');
-
-  const yen = n => '¥' + (Math.round(n)).toLocaleString();
-
-  function syncSpecs(){
-    const ramLabel = ram?.selectedOptions?.[0]?.textContent?.trim() || '';
-    const ssdLabel = ssd?.selectedOptions?.[0]?.textContent?.trim() || '';
-    if (specRam && ramLabel){
-      const txt = /GB/i.test(ramLabel) ? ramLabel : (ramLabel + 'GB');
-      specRam.textContent = txt + ' DDR5';
-    }
-    if (specSsd && ssdLabel){
-      specSsd.textContent = ssdLabel;
-    }
-  }
-
+  function yen(n){ return '¥' + (Math.round(n)).toLocaleString(); }
   function calc(){
     const d1 = parseInt(ram?.selectedOptions[0]?.dataset.delta || '0', 10);
     const d2 = parseInt(ssd?.selectedOptions[0]?.dataset.delta || '0', 10);
     view.textContent = yen(base + d1 + d2);
-    syncSpecs();
   }
-
   ram?.addEventListener('change', calc);
   ssd?.addEventListener('change', calc);
   calc();
-})();
-</script>
 
-<!-- 比較に追加（非遷移） -->
-<script>
-(function(){
-  const btn  = document.getElementById('btnCompare');
+  // 比較に追加（AJAX）
+  const btn = document.getElementById('btnCompare');
   const form = btn?.closest('form');
   if(!btn || !form) return;
 
@@ -227,12 +199,15 @@ global $OPT_RAM, $OPT_SSD;
     if(!el){
       el = document.createElement('div');
       el.id = 'cmpToast';
-      Object.assign(el.style, {
-        position:'fixed', right:'16px', bottom:'16px',
-        background:'#111827', color:'#fff', padding:'10px 14px',
-        borderRadius:'10px', boxShadow:'0 6px 20px rgba(0,0,0,.2)',
-        zIndex:'2000', transition:'opacity .2s'
-      });
+      el.style.position='fixed';
+      el.style.right='16px';
+      el.style.bottom='16px';
+      el.style.background='#111827';
+      el.style.color='#fff';
+      el.style.padding='10px 14px';
+      el.style.borderRadius='10px';
+      el.style.boxShadow='0 6px 20px rgba(0,0,0,.2)';
+      el.style.zIndex='2000';
       document.body.appendChild(el);
     }
     el.textContent = msg;
@@ -251,7 +226,11 @@ global $OPT_RAM, $OPT_SSD;
       });
       if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json().catch(()=>({ok:true}));
-      toast(data.ok ? '比較に追加しました。比較ページで確認できます。' : (data.message || '追加に失敗しました'));
+      if(data.ok){
+        toast('比較に追加しました。比較ページで確認できます。');
+      }else{
+        toast(data.message || '追加に失敗しました');
+      }
     }catch(err){
       console.error(err);
       toast('通信エラーが発生しました');
@@ -259,10 +238,11 @@ global $OPT_RAM, $OPT_SSD;
   });
 })();
 </script>
-
-<!-- カートに入れる（非遷移） -->
 <script>
 (function(){
+  // ---- すでにある価格更新と比較の処理はそのまま ----
+  // ここでは「カートに入れる（AJAX）」だけ追加します。
+
   const cartBtn = document.getElementById('btnCart');
   const form    = cartBtn?.closest('form');
   if(!cartBtn || !form) return;
@@ -272,12 +252,16 @@ global $OPT_RAM, $OPT_SSD;
     if(!el){
       el = document.createElement('div');
       el.id = 'cmpToast';
-      Object.assign(el.style, {
-        position:'fixed', right:'16px', bottom:'16px',
-        background:'#111827', color:'#fff', padding:'10px 14px',
-        borderRadius:'10px', boxShadow:'0 6px 20px rgba(0,0,0,.2)',
-        zIndex:'2000', transition:'opacity .2s'
-      });
+      el.style.position='fixed';
+      el.style.right='16px';
+      el.style.bottom='16px';
+      el.style.background='#111827';
+      el.style.color='#fff';
+      el.style.padding='10px 14px';
+      el.style.borderRadius='10px';
+      el.style.boxShadow='0 6px 20px rgba(0,0,0,.2)';
+      el.style.zIndex='2000';
+      el.style.transition='opacity .2s';
       document.body.appendChild(el);
     }
     el.textContent = msg;
@@ -292,6 +276,7 @@ global $OPT_RAM, $OPT_SSD;
     const ssd  = form.querySelector('#optSsd')?.value || '';
     if(!slug){ toast('エラー：slugが見つかりません'); return; }
 
+    // 相対パスずれ対策：現在URLを基準に絶対化
     const url = new URL('cart_add.php?ajax=1', window.location.href);
     try{
       const res = await fetch(url.toString(), {
@@ -303,6 +288,7 @@ global $OPT_RAM, $OPT_SSD;
       const data = await res.json().catch(()=>({ok:true}));
       if(data.ok){
         toast('カートに追加しました');
+        // ヘッダーに個数バッジがあるなら更新（id="cartCount" を想定・任意）
         if (typeof data.count !== 'undefined') {
           const badge = document.getElementById('cartCount');
           if (badge) badge.textContent = String(data.count);
@@ -317,31 +303,35 @@ global $OPT_RAM, $OPT_SSD;
   });
 })();
 </script>
-
-<!-- お気に入りに追加（非遷移） -->
 <script>
 (function(){
-  const favBtn = document.getElementById('btnFav');
-  const form   = favBtn?.closest('form');
-  if(!favBtn || !form) return;
-
-  function toast(msg){
+  // すでにある toast() を流用。無ければ下の簡易版でOK
+  function ensureToast(){
     let el = document.getElementById('cmpToast');
     if(!el){
       el = document.createElement('div');
       el.id = 'cmpToast';
       Object.assign(el.style, {
         position:'fixed', right:'16px', bottom:'16px',
-        background:'#111827', color:'#fff', padding:'10px 14px',
-        borderRadius:'10px', boxShadow:'0 6px 20px rgba(0,0,0,.2)',
-        zIndex:'2000', transition:'opacity .2s'
+        background:'#111827', color:'#fff',
+        padding:'10px 14px', borderRadius:'10px',
+        boxShadow:'0 6px 20px rgba(0,0,0,.2)', zIndex:'2000',
+        transition:'opacity .2s'
       });
       document.body.appendChild(el);
     }
-    el.textContent = msg;
-    el.style.opacity='1';
-    setTimeout(()=>{ el.style.opacity='0'; }, 1600);
+    return el;
   }
+  function toast(msg){
+    const el = ensureToast();
+    el.textContent = msg;
+    el.style.opacity = '1';
+    setTimeout(()=>{ el.style.opacity = '0'; }, 1600);
+  }
+
+  const favBtn = document.getElementById('btnFav');
+  const form   = favBtn?.closest('form');
+  if(!favBtn || !form) return;
 
   favBtn.addEventListener('click', async ()=>{
     const slug = form.querySelector('input[name="slug"]')?.value || '';
@@ -358,6 +348,7 @@ global $OPT_RAM, $OPT_SSD;
       const data = await res.json().catch(()=>({ok:true}));
       if(data.ok){
         toast('お気に入りに追加しました');
+        // ヘッダにバッジがある場合（id="favCount"想定）を更新
         if (typeof data.count !== 'undefined') {
           const badge = document.getElementById('favCount');
           if (badge) badge.textContent = String(data.count);
@@ -372,6 +363,7 @@ global $OPT_RAM, $OPT_SSD;
   });
 })();
 </script>
+
 
 </body>
 </html>

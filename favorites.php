@@ -3,15 +3,38 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__.'/lib/app.php'; // h(), yen(), list_products()
 
-// セッションの一覧（slug配列）
-$favs = $_SESSION['favorites'] ?? [];
-$favs = is_array($favs) ? array_values(array_unique(array_filter($favs))) : [];
+/* -----------------------------
+ * 1) お気に入り（slug配列）を安全に正規化
+ *    - 文字列: そのまま
+ *    - 配列: ['slug'=>...] を拾う（旧データ互換）
+ *    - その他スカラー: 文字列化（保険）
+ * ----------------------------- */
+$favsRaw = $_SESSION['favorites'] ?? [];
+$favs = [];
+if (is_array($favsRaw)) {
+  foreach ($favsRaw as $v) {
+    if (is_array($v) && isset($v['slug'])) {
+      $slug = (string)$v['slug'];
+      if ($slug !== '') $favs[] = $slug;
+    } elseif (is_string($v)) {
+      if ($v !== '') $favs[] = $v;
+    } elseif (is_scalar($v)) {
+      $s = (string)$v;
+      if ($s !== '') $favs[] = $s;
+    }
+  }
+}
+$favs = array_values(array_unique($favs)); // ★ ここまで来れば全部文字列なので安全
 
-// 追加で：詳細（ram/ssd/qty/price）
+/* -----------------------------
+ * 2) 詳細（ram/ssd/qty/price）は別配列
+ * ----------------------------- */
 $details = $_SESSION['favorites_detail'] ?? [];
 if (!is_array($details)) $details = [];
 
-// 全商品（slug→商品）を引く
+/* -----------------------------
+ * 3) 商品データ取得（slug → 商品）
+ * ----------------------------- */
 $all = list_products();
 function find_by_slug_local($slug, $all){
   foreach ($all as $p) if (!empty($p['slug']) && $p['slug'] === $slug) return $p;
@@ -37,35 +60,41 @@ $prods = array_map(fn($s)=> find_by_slug_local($s, $all), $favs);
     <h1 class="text-2xl font-semibold">お気に入り</h1>
   </div>
 
-  <?php if (!$prods): ?>
+  <?php
+    // 全て null（slug不正など）だったら空扱いにする
+    $hasAny = false;
+    if ($prods) {
+      foreach ($prods as $pp) { if ($pp) { $hasAny = true; break; } }
+    }
+  ?>
+
+  <?php if (!$prods || !$hasAny): ?>
     <p>お気に入りは空です。</p>
   <?php else: ?>
     <div id="favGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <?php foreach ($prods as $p): if(!$p) continue; $slug = (string)($p['slug'] ?? ''); ?>
+      <?php foreach ($prods as $p):
+        if(!$p) continue;
+        $slug = (string)($p['slug'] ?? '');
+        // セッションに保存された選択値と現在価格
+        $ramSel = (string)($details[$slug]['ram']   ?? '');
+        $ssdSel = (string)($details[$slug]['ssd']   ?? '');
+        $nowPri = (int)   ($details[$slug]['price'] ?? 0);
+
+        // 表示RAM文言（セッションが優先、なければ製品既定）
+        $ramText = $ramSel !== '' ? ($ramSel.'GB') : ((string)($p['ram'] ?? '') !== '' ? ($p['ram'].'GB') : '');
+        // 表示価格（セッション保存の現在価格があれば優先）
+        $unitPrice = $nowPri > 0 ? $nowPri : (int)($p['price'] ?? 0);
+      ?>
         <article class="fav-card rounded-2xl border bg-white p-4" data-slug="<?= h($slug) ?>">
           <div class="badge mb-2"><?= h($p['cpu'] ?? '') ?></div>
           <h3 class="font-semibold"><?= h($p['name'] ?? $slug) ?></h3>
-
-          <?php
-            // セッションに保存された選択肢と「その時の価格」
-            $ramSel = (string)($details[$slug]['ram']   ?? '');
-            $ssdSel = (string)($details[$slug]['ssd']   ?? '');
-            $nowPri = (int)   ($details[$slug]['price'] ?? 0);
-
-            // 表示用のRAMテキスト（セッションに無ければ製品既定）
-            $ramText = $ramSel !== '' ? ($ramSel.'GB') : ((string)($p['ram'] ?? '') !== '' ? ($p['ram'].'GB') : '');
-          ?>
           <p class="text-sm text-gray-600">
             <?= h($p['gpu'] ?? '') ?><?= $ramText!=='' ? ' / '.h($ramText) : '' ?>
           </p>
-
           <div class="mt-2 flex items-center justify-between">
-            <div class="font-semibold">
-              <?= yen($nowPri > 0 ? $nowPri : (int)($p['price'] ?? 0)) ?>
-            </div>
+            <div class="font-semibold"><?= yen($unitPrice) ?></div>
             <div class="flex gap-2">
               <a class="text-blue-600 underline" href="product_detail.php?s=<?= h($slug) ?>">詳細</a>
-              <!-- 非遷移の削除ボタン -->
               <button type="button" class="px-3 py-1 text-sm border rounded remove-fav">削除</button>
             </div>
           </div>
@@ -79,7 +108,6 @@ $prods = array_map(fn($s)=> find_by_slug_local($s, $all), $favs);
 
 <script>
 (function(){
-  // かんたんトースト
   function toast(msg){
     let el = document.getElementById('favToast');
     if(!el){
@@ -120,18 +148,13 @@ $prods = array_map(fn($s)=> find_by_slug_local($s, $all), $favs);
       const data = await res.json();
 
       if (data.ok){
-        // DOMからカード削除
         card.remove();
-
-        // バッジ更新（あれば）
         if (typeof data.count !== 'undefined') {
           const badge = document.getElementById('favCount');
           if (badge) badge.textContent = String(data.count);
         }
-
         toast('お気に入りから削除しました');
 
-        // 0件になったら空表示へ
         if (!grid.querySelector('.fav-card')) {
           grid.insertAdjacentHTML('beforebegin', '<p>お気に入りは空です。</p>');
           grid.remove();

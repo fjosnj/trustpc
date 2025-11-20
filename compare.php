@@ -1,32 +1,38 @@
 <?php
-// /2025/trustpc/compare.php
 if (session_status() === PHP_SESSION_NONE) session_start();
-require_once __DIR__.'/lib/app.php'; // h(), yen(), list_products(), find_product_by_slug()
+require_once __DIR__.'/lib/app.php';
 
-// --- 操作系（?clear=all | ?slot=0..2） ---
+// クリア処理
 if (isset($_GET['clear'])) {
   if ($_GET['clear'] === 'all') {
-    unset($_SESSION['compare']);
+    unset($_SESSION['compare'], $_SESSION['compare_detail']);
   } else {
     $slot = max(0, min(2, (int)($_GET['slot'] ?? -1)));
-    if (isset($_SESSION['compare'][$slot])) $_SESSION['compare'][$slot] = null;
+    if (isset($_SESSION['compare'][$slot])) {
+      $slug = $_SESSION['compare'][$slot];
+      $_SESSION['compare'][$slot] = null;
+      if (!empty($_SESSION['compare_detail'][$slug])) unset($_SESSION['compare_detail'][$slug]);
+    }
   }
   header('Location: compare.php'); exit;
 }
 
-// 比較スロット（0,1,2）
+// スロット復元
 $slots = [null, null, null];
 if (!empty($_SESSION['compare']) && is_array($_SESSION['compare'])) {
   foreach ([0,1,2] as $i) if (!empty($_SESSION['compare'][$i])) $slots[$i] = $_SESSION['compare'][$i];
 }
 
-// スロット→商品データに変換
+// 商品取得
 $all = list_products();
 function find_by_slug_local($slug, $all){
   foreach ($all as $p) if (!empty($p['slug']) && $p['slug'] === $slug) return $p;
   return null;
 }
-$prods = array_map(fn($s)=> $s ? find_by_slug_local($s, $all) : null, $slots);
+$prods   = array_map(fn($s)=> $s ? find_by_slug_local($s, $all) : null, $slots);
+
+// ★ ここが肝：詳細画面から保存した選択＆現在価格を参照
+$details = $_SESSION['compare_detail'] ?? [];
 
 function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
 ?>
@@ -67,10 +73,20 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
           <span class="cmp-key">製品名</span>
           <span class="cmp-val"><?= $p ? h($p['name']) : '未登録' ?></span>
         </div>
+
         <div class="cmp-row">
           <span class="cmp-key">価格</span>
-          <span class="cmp-val"><?= $p ? yen((int)$p['price']) : '—' ?></span>
+          <span class="cmp-val">
+            <?php if ($p):
+              $slug = $p['slug'] ?? '';
+              // ★ price が入っていればそれを最優先
+              $unit = (!empty($details[$slug]['price']) && (int)$details[$slug]['price'] > 0)
+                        ? (int)$details[$slug]['price'] : (int)($p['price'] ?? 0);
+              echo yen($unit);
+            else: ?>—<?php endif; ?>
+          </span>
         </div>
+
         <div class="cmp-row">
           <span class="cmp-key">CPU</span>
           <span class="cmp-val"><?= $p ? cell($p['cpu']) : '—' ?></span>
@@ -79,13 +95,25 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
           <span class="cmp-key">GPU</span>
           <span class="cmp-val"><?= $p ? cell($p['gpu']) : '—' ?></span>
         </div>
+
         <div class="cmp-row">
           <span class="cmp-key">メモリ</span>
-          <span class="cmp-val"><?= $p ? h(($p['ram'] ?? '').'GB DDR5') : '—' ?></span>
+          <span class="cmp-val">
+            <?php if ($p):
+              $slug = $p['slug'] ?? '';
+              echo h(!empty($details[$slug]['ram']) ? $details[$slug]['ram'].'GB DDR5' : (($p['ram'] ?? '').'GB DDR5'));
+            else: ?>—<?php endif; ?>
+          </span>
         </div>
+
         <div class="cmp-row">
           <span class="cmp-key">ストレージ</span>
-          <span class="cmp-val"><?= $p ? cell($p['storage']) : '—' ?></span>
+          <span class="cmp-val">
+            <?php if ($p):
+              $slug = $p['slug'] ?? '';
+              echo h($details[$slug]['ssd'] ?? ($p['storage'] ?? ''));
+            else: ?>—<?php endif; ?>
+          </span>
         </div>
 
         <div class="mt-3">

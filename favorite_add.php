@@ -1,37 +1,36 @@
 <?php
 // /2025/trustpc/favorite_add.php
 if (session_status() === PHP_SESSION_NONE) session_start();
+header('Content-Type: application/json; charset=UTF-8');
 
-$isAjax = (isset($_GET['ajax']) && $_GET['ajax'] === '1')
-       || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
+$slug  = trim($_POST['slug']  ?? '');
+$ram   = trim($_POST['ram']   ?? '');
+$ssd   = trim($_POST['ssd']   ?? '');
+$qty   = (int)($_POST['qty']  ?? 1);
+$price = (int)($_POST['price']?? 0);
 
-$slug = (string)($_POST['slug'] ?? $_GET['slug'] ?? '');
 if ($slug === '') {
-  if ($isAjax) { header('Content-Type: application/json; charset=utf-8'); echo json_encode(['ok'=>false,'message'=>'slug is empty']); exit; }
-  header('Location: favorites.php'); exit;
+  echo json_encode(['ok'=>false, 'message'=>'slugが空です']); exit;
 }
 
-// セッション初期化
-if (empty($_SESSION['favorites']) || !is_array($_SESSION['favorites'])) {
+// リストは slug の集合として保持
+if (!isset($_SESSION['favorites']) || !is_array($_SESSION['favorites'])) {
   $_SESSION['favorites'] = [];
 }
-
-// 重複なしで追加（上限は任意：50）
 if (!in_array($slug, $_SESSION['favorites'], true)) {
   $_SESSION['favorites'][] = $slug;
-  if (count($_SESSION['favorites']) > 50) {
-    $_SESSION['favorites'] = array_slice($_SESSION['favorites'], -50);
-  }
 }
 
-// ★ 永続化（ログイン時のみ）
-require_once __DIR__ . '/lib/persist.php';
-if ($uid = current_user_id()) {
-  save_favorites_for_user($uid, $_SESSION['favorites']);
-}
+// ★ 表示オーバーレイ用の詳細（可変価格や選択）を別配列に保存
+if (!isset($_SESSION['favorites_detail'])) $_SESSION['favorites_detail'] = [];
+$_SESSION['favorites_detail'][$slug] = [
+  'ram'   => $ram,
+  'ssd'   => $ssd,
+  'qty'   => max(1,$qty),
+  'price' => max(0,$price),
+];
 
-if ($isAjax) {
-  header('Content-Type: application/json; charset=utf-8');
-  echo json_encode(['ok'=>true, 'count'=>count($_SESSION['favorites']), 'slugs'=>array_values($_SESSION['favorites'])]); exit;
-}
-header('Location: favorites.php'); exit;
+echo json_encode([
+  'ok'    => true,
+  'count' => count($_SESSION['favorites'])
+]);

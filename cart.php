@@ -1,7 +1,6 @@
 <?php
-// /2025/trustpc/cart.php
 if (session_status() === PHP_SESSION_NONE) session_start();
-require_once __DIR__ . '/lib/app.php'; // h(), yen(), list_products(), $OPT_RAM, $OPT_SSD
+require_once __DIR__ . '/lib/app.php';
 
 $cart = $_SESSION['cart'] ?? [];
 if (!is_array($cart)) $cart = [];
@@ -42,7 +41,14 @@ foreach ($cart as $idx => $line) {
   $ram  = (string)($line['ram'] ?? '');
   $ssd  = (string)($line['ssd'] ?? '');
 
-  $unit = $base + opt_delta($OPT_RAM, $ram) + opt_delta($OPT_SSD, $ssd);
+  // ★ ここが肝：詳細画面で決まった現在単価を最優先
+  if (isset($line['price']) && (int)$line['price'] > 0) {
+    $unit = (int)$line['price'];
+  } else {
+    // フォールバック：オプションの差額から再計算
+    $unit = $base + opt_delta($OPT_RAM, $ram) + opt_delta($OPT_SSD, $ssd);
+  }
+
   $sub  = $unit * $qty;
   $total += $sub;
 
@@ -100,7 +106,6 @@ foreach ($cart as $idx => $line) {
           <div class="text-right">
             <div class="text-sm text-gray-500">単価: <?= yen($i['unit']) ?></div>
             <div class="font-bold">小計: <span class="sub"><?= yen($i['sub']) ?></span></div>
-            <!-- ★ 非遷移の削除ボタン -->
             <button type="button" class="mt-2 px-3 py-1 text-sm border rounded remove-cart">削除</button>
           </div>
         </div>
@@ -160,14 +165,10 @@ foreach ($cart as $idx => $line) {
       const data = await res.json();
 
       if (data.ok){
-        // DOMからカードを削除
         card.remove();
-
-        // 合計を更新
         const totalEl = document.getElementById('cartTotal');
         if (totalEl && data.total_html) totalEl.textContent = data.total_html;
 
-        // ヘッダーのカート個数バッジ（id="cartCount"想定）も更新
         if (typeof data.count !== 'undefined') {
           const badge = document.getElementById('cartCount');
           if (badge) badge.textContent = String(data.count);
@@ -175,11 +176,9 @@ foreach ($cart as $idx => $line) {
 
         toast('カートから削除しました');
 
-        // すべて無くなったら空表示に差し替え
         if (!list.querySelector('.cart-card')) {
           list.insertAdjacentHTML('beforebegin', '<p>カートは空です。</p>');
           list.remove();
-          // 合計0にも更新
           if (totalEl) totalEl.textContent = '¥0';
         }
       }else{

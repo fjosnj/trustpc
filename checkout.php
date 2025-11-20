@@ -3,7 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/lib/app.php'; // h(), yen(), list_products(), $OPT_RAM, $OPT_SSD
 
-// ---- カート読み込み & 料金計算（cart.phpと同ロジック） ----
+// ---- カート読み込み & 料金計算 ----
 $cart = $_SESSION['cart'] ?? [];
 if (!is_array($cart)) $cart = [];
 
@@ -41,7 +41,14 @@ foreach ($cart as $line) {
   $ram  = (string)($line['ram'] ?? '');
   $ssd  = (string)($line['ssd'] ?? '');
 
-  $unit = $base + opt_delta($OPT_RAM, $ram) + opt_delta($OPT_SSD, $ssd);
+  // ★ 詳細画面で確定した現在単価を最優先
+  if (isset($line['price']) && (int)$line['price'] > 0) {
+    $unit = (int)$line['price'];
+  } else {
+    // フォールバック：差額から再計算
+    $unit = $base + opt_delta($OPT_RAM, $ram) + opt_delta($OPT_SSD, $ssd);
+  }
+
   $sub  = $unit * $qty;
   $total += $sub;
 

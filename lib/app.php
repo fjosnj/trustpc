@@ -1,4 +1,31 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+// 共通ユーティリティ
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function yen($n){ return '¥' . number_format((int)$n); }
+
+// DBリポジトリ読み込み（ここ経由で $pdo が確保される）
+require_once __DIR__ . '/db_repo.php';
+
+// 旧API互換：商品一覧
+function list_products(): array {
+  global $pdo;                // ← db_connect.php で作ったPDO
+  return db_list_products($pdo);
+}
+
+// 旧API互換：1件取得
+function find_product($key): ?array {
+  global $pdo;
+  return db_find_product($pdo, (string)$key);
+}
+
+// 旧API互換：オプショングループ/選択肢
+function product_options(int $product_id): array {
+  global $pdo;
+  return db_product_option_groups($pdo, $product_id);
+}
+<?php
 // /2025/TrustPC/lib/app.php
 // セッション開始（未開始なら）
 if (session_status() === PHP_SESSION_NONE) session_start();

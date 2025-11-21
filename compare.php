@@ -67,7 +67,20 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
     <?php foreach ([0,1,2] as $i): $p = $prods[$i]; ?>
       <section class="cmp-card p-4">
         <h2 class="text-lg font-semibold mb-3">製品 <?= $i+1 ?></h2>
-        <div class="cmp-img">画像（任意）</div>
+
+        <!-- ★★★ DB の image_url を表示できる画像部分 ★★★ -->
+        <div class="cmp-img">
+          <?php if ($p && !empty($p['image_url'])): ?>
+            <img
+              src="<?= h($p['image_url']) ?>"
+              alt="<?= h($p['name']) ?>"
+              class="max-h-full max-w-full object-contain"
+            >
+          <?php else: ?>
+            画像なし
+          <?php endif; ?>
+        </div>
+        <!-- ★★★★★★★★★★★★★★★★★★★★★★★★★★ -->
 
         <div class="cmp-row mt-4">
           <span class="cmp-key">製品名</span>
@@ -79,7 +92,6 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
           <span class="cmp-val">
             <?php if ($p):
               $slug = $p['slug'] ?? '';
-              // ★ price が入っていればそれを最優先
               $unit = (!empty($details[$slug]['price']) && (int)$details[$slug]['price'] > 0)
                         ? (int)$details[$slug]['price'] : (int)($p['price'] ?? 0);
               echo yen($unit);

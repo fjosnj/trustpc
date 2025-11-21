@@ -3,7 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/lib/app.php'; // h(), yen(), list_products(), $OPT_RAM, $OPT_SSD
 
-// ---- カート読み込み & 料金計算 ----
+// ---- カート読み込み & 料金計算（既存そのまま） ----
 $cart = $_SESSION['cart'] ?? [];
 if (!is_array($cart)) $cart = [];
 
@@ -41,13 +41,9 @@ foreach ($cart as $line) {
   $ram  = (string)($line['ram'] ?? '');
   $ssd  = (string)($line['ssd'] ?? '');
 
-  // ★ 詳細画面で確定した現在単価を最優先
-  if (isset($line['price']) && (int)$line['price'] > 0) {
-    $unit = (int)$line['price'];
-  } else {
-    // フォールバック：差額から再計算
-    $unit = $base + opt_delta($OPT_RAM, $ram) + opt_delta($OPT_SSD, $ssd);
-  }
+  $unit = isset($line['price']) && (int)$line['price'] > 0
+        ? (int)$line['price']
+        : $base + opt_delta($OPT_RAM, $ram) + opt_delta($OPT_SSD, $ssd);
 
   $sub  = $unit * $qty;
   $total += $sub;
@@ -66,8 +62,28 @@ foreach ($cart as $line) {
   ];
 }
 
-// 都道府県
+// 都道府県（既存）
 $PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+
+/* ===========================
+ * ★ 氏名/メールの自動入力
+ *    - 直前の入力があればそれを優先
+ *    - なければログイン中セッションから補完
+ * =========================== */
+$prevCheckout = $_SESSION['checkout'] ?? [];
+$autoName = ($prevCheckout['name'] ?? '') !== ''
+          ? $prevCheckout['name']
+          : ( $_SESSION['user']['name']
+            ?? $_SESSION['member']['name']
+            ?? $_SESSION['login_user']['name']
+            ?? '' );
+
+$autoMail = ($prevCheckout['email'] ?? '') !== ''
+          ? $prevCheckout['email']
+          : ( $_SESSION['user']['email']
+            ?? $_SESSION['member']['email']
+            ?? $_SESSION['login_user']['email']
+            ?? '' );
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -98,11 +114,15 @@ $PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label class="block">
             <span class="text-sm">氏名</span>
-            <input name="name" class="mt-1 w-full border rounded-lg p-2" placeholder="山田 太郎" required>
+            <input name="name" class="mt-1 w-full border rounded-lg p-2"
+                   placeholder="山田 太郎" required
+                   value="<?= h($autoName) ?>">
           </label>
           <label class="block">
             <span class="text-sm">メール</span>
-            <input name="email" type="email" class="mt-1 w-full border rounded-lg p-2" placeholder="taro@example.com" required>
+            <input name="email" type="email" class="mt-1 w-full border rounded-lg p-2"
+                   placeholder="taro@example.com" required
+                   value="<?= h($autoMail) ?>">
           </label>
         </div>
 

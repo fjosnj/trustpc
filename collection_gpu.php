@@ -19,11 +19,7 @@ $title = 'GPUから選ぶ';
 <main class="max-w-7xl mx-auto px-4 py-8">
   <?php
     $q = $_GET['q'] ?? '';
-    require __DIR__ . '/includes/db_connect.php';
-    //$list = list_products(['cpu'=>$q]);
-    $stmt = $pdo->prepare("SELECT * FROM products WHERE is_active = 1");
-    $stmt->execute();
-    $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $list = list_products(['gpu'=>$q]);
   ?>
   <h1 class="text-2xl font-semibold mb-4">GPUから選ぶ</h1>
 

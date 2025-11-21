@@ -3,7 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/lib/app.php'; // h(), yen(), list_products(), $OPT_RAM, $OPT_SSD
 
-// checkout.php からの入力を保存（再読み込みでも保持）
+// checkout.php からの入力を保存
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $_SESSION['checkout'] = [
     'name' => $_POST['name'] ?? '',
@@ -16,12 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     'note' => $_POST['note'] ?? '',
   ];
 }
-
 $addr = $_SESSION['checkout'] ?? null;
 
-// カート読み込み＆計算（cart.phpと同じロジック）
+// カート読み込み＆計算（cart.phpと同じ方針）
 $cart = $_SESSION['cart'] ?? [];
 $all  = list_products();
+
 function find_by_slug_local($slug, $all){ foreach ($all as $p) if (!empty($p['slug']) && $p['slug']===$slug) return $p; return null; }
 function opt_delta($list, $val){ if(!is_array($list))return 0; foreach($list as $o) if((string)($o['val']??'')===(string)$val) return (int)($o['delta']??0); return 0; }
 function opt_label($k,$v){ $m=['ram'=>['16'=>'16GB','32'=>'32GB','64'=>'64GB'], 'ssd'=>['512'=>'SSD 512GB','1tb'=>'SSD 1TB','2tb'=>'SSD 2TB']]; return $m[$k][$v]??null; }
@@ -29,14 +29,31 @@ global $OPT_RAM, $OPT_SSD;
 
 $items=[]; $total=0;
 foreach ($cart as $line) {
-  $p=find_by_slug_local((string)($line['slug']??''), $all);
+  $p = find_by_slug_local((string)($line['slug']??''), $all);
   if(!$p) continue;
-  $qty=max(1,(int)($line['qty']??1));
-  $ram=(string)($line['ram']??''); $ssd=(string)($line['ssd']??'');
-  $unit=(int)$p['price'] + opt_delta($OPT_RAM,$ram) + opt_delta($OPT_SSD,$ssd);
-  $sub=$unit*$qty; $total+=$sub;
-  $opts=array_filter([opt_label('ram',$ram), opt_label('ssd',$ssd)]);
-  $items[]=['name'=>$p['name'],'qty'=>$qty,'sub'=>$sub,'opts'=>implode(' / ',$opts)];
+
+  $qty = max(1,(int)($line['qty']??1));
+  $ram = (string)($line['ram']??'');
+  $ssd = (string)($line['ssd']??'');
+
+  // ★ 詳細画面の “現在単価” を最優先
+  if (isset($line['price']) && (int)$line['price'] > 0) {
+    $unit = (int)$line['price'];
+  } else {
+    // フォールバック：差額から再計算
+    $unit = (int)$p['price'] + opt_delta($OPT_RAM,$ram) + opt_delta($OPT_SSD,$ssd);
+  }
+
+  $sub   = $unit * $qty; 
+  $total += $sub;
+
+  $opts = array_filter([opt_label('ram',$ram), opt_label('ssd',$ssd)]);
+  $items[] = [
+    'name' => $p['name'],
+    'qty'  => $qty,
+    'sub'  => $sub,
+    'opts' => implode(' / ',$opts),
+  ];
 }
 ?>
 <!DOCTYPE html>
@@ -109,3 +126,4 @@ foreach ($cart as $line) {
 <?php include __DIR__.'/includes/footer.php'; ?>
 </body>
 </html>
+        

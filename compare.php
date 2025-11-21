@@ -29,9 +29,9 @@ function find_by_slug_local($slug, $all){
   foreach ($all as $p) if (!empty($p['slug']) && $p['slug'] === $slug) return $p;
   return null;
 }
-$prods   = array_map(fn($s)=> $s ? find_by_slug_local($s, $all) : null, $slots);
+$prods = array_map(fn($s)=> $s ? find_by_slug_local($s, $all) : null, $slots);
 
-// ★ ここが肝：詳細画面から保存した選択＆現在価格を参照
+// 詳細画面で保存したカスタム値
 $details = $_SESSION['compare_detail'] ?? [];
 
 function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
@@ -42,18 +42,48 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>製品比較 | trustPC</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="assets/style.css"/>
+
   <style>
-    .cmp-card{border-radius:16px;border:1px solid rgba(17,18,20,.1);background:#fff}
-    .cmp-row{display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(17,18,20,.06);
-             border-radius:12px;padding:10px 12px;margin-top:10px}
+    .cmp-card{
+      border-radius:16px;
+      border:1px solid rgba(17,18,20,.1);
+      background:#fff;
+    }
+    .cmp-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      border:1px solid rgba(17,18,20,.06);
+      border-radius:12px;
+      padding:10px 12px;
+      margin-top:10px;
+    }
     .cmp-key{color:#64748b;font-size:14px}
     .cmp-val{font-size:14px}
-    .cmp-img{height:220px;background:#f3f4f6;border:1px solid rgba(17,18,20,.06);border-radius:12px;
-             display:flex;align-items:center;justify-content:center;color:#9aa3af}
+
+    /* ★ 画像を大きくして枠いっぱいに入れる（object-fit: cover） */
+    .cmp-img{
+      height:300px;                     /* ← 枠の高さ（大きさ変えるならここ） */
+      background:#f3f4f6;
+      border:1px solid rgba(17,18,20,.06);
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;                   /* ← はみ出す部分をカット */
+    }
+    .cmp-img img{
+      width:100%;
+      height:100%;
+      object-fit:cover;                  /* ← 枠いっぱいに拡大して揃える */
+      display:block;
+    }
   </style>
 </head>
+
 <body class="bg-gray-50 text-gray-900 has-sticky-offset">
 <?php include __DIR__.'/includes/header.php'; ?>
 
@@ -68,19 +98,14 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
       <section class="cmp-card p-4">
         <h2 class="text-lg font-semibold mb-3">製品 <?= $i+1 ?></h2>
 
-        <!-- ★★★ DB の image_url を表示できる画像部分 ★★★ -->
+        <!-- ★ 枠いっぱいに画像を表示（サイズ統一） -->
         <div class="cmp-img">
           <?php if ($p && !empty($p['image_url'])): ?>
-            <img
-              src="<?= h($p['image_url']) ?>"
-              alt="<?= h($p['name']) ?>"
-              class="max-h-full max-w-full object-contain"
-            >
+            <img src="<?= h($p['image_url']) ?>" alt="<?= h($p['name']) ?>">
           <?php else: ?>
             画像なし
           <?php endif; ?>
         </div>
-        <!-- ★★★★★★★★★★★★★★★★★★★★★★★★★★ -->
 
         <div class="cmp-row mt-4">
           <span class="cmp-key">製品名</span>
@@ -93,7 +118,8 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
             <?php if ($p):
               $slug = $p['slug'] ?? '';
               $unit = (!empty($details[$slug]['price']) && (int)$details[$slug]['price'] > 0)
-                        ? (int)$details[$slug]['price'] : (int)($p['price'] ?? 0);
+                        ? (int)$details[$slug]['price']
+                        : (int)($p['price'] ?? 0);
               echo yen($unit);
             else: ?>—<?php endif; ?>
           </span>
@@ -103,6 +129,7 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
           <span class="cmp-key">CPU</span>
           <span class="cmp-val"><?= $p ? cell($p['cpu']) : '—' ?></span>
         </div>
+
         <div class="cmp-row">
           <span class="cmp-key">GPU</span>
           <span class="cmp-val"><?= $p ? cell($p['gpu']) : '—' ?></span>
@@ -113,7 +140,8 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
           <span class="cmp-val">
             <?php if ($p):
               $slug = $p['slug'] ?? '';
-              echo h(!empty($details[$slug]['ram']) ? $details[$slug]['ram'].'GB DDR5' : (($p['ram'] ?? '').'GB DDR5'));
+              echo h(!empty($details[$slug]['ram']) ? $details[$slug]['ram'].'GB DDR5'
+                                                     : (($p['ram'] ?? '').'GB DDR5'));
             else: ?>—<?php endif; ?>
           </span>
         </div>
@@ -131,11 +159,13 @@ function cell($v){ return $v!==null && $v!=='' ? h($v) : '—'; }
         <div class="mt-3">
           <a class="inline-flex items-center px-4 py-2 rounded-lg border bg-white hover:bg-gray-50"
              href="compare.php?clear=1&slot=<?= $i ?>">この列をクリア</a>
+
           <?php if ($p): ?>
             <a class="inline-flex items-center px-3 py-2 rounded-lg bg-blue-600 text-white ml-2"
                href="product_detail.php?s=<?= h($p['slug']) ?>">詳細へ</a>
           <?php endif; ?>
         </div>
+
       </section>
     <?php endforeach; ?>
   </div>
